@@ -1,0 +1,79 @@
+﻿﻿server:
+  port: 8080
+spring:
+  application:
+    name: gateway-service
+  config:
+    import: optional:configserver:http://config-service:8888
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
+      routes:
+        - id: video-service
+          uri: lb://video-service
+          predicates:
+            - Path=/api/videos/**
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**,/api/watchlist/**,/api/history/**
+        # Routes pour agréger les docs Swagger des microservices
+        - id: video-service-api-docs
+          uri: lb://video-service
+          predicates:
+            - Path=/v3/api-docs/video-service/**
+          filters:
+            - RewritePath=/v3/api-docs/video-service/(?<remaining>.*), /v3/api-docs/${remaining}
+        - id: user-service-api-docs
+          uri: lb://user-service
+          predicates:
+            - Path=/v3/api-docs/user-service/**
+          filters:
+            - RewritePath=/v3/api-docs/user-service/(?<remaining>.*), /v3/api-docs/${remaining}
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-service:8761/eureka/
+  instance:
+    prefer-ip-address: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+
+# ─── Swagger / OpenAPI 3 – Agrégation via Gateway ───────────────────────────
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    # URL de l'UI Swagger agrégée : http://localhost:8080/swagger-ui.html
+    path: /swagger-ui.html
+    # Liste des services documentés dans la liste déroulante de l'UI
+    urls:
+      - name: video-service
+        url: /v3/api-docs/video-service
+      - name: user-service
+        url: /v3/api-docs/user-service
+    # Affiche video-service par défaut
+    urls-primary-name: video-service
