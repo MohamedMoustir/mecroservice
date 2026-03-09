@@ -1,0 +1,27 @@
+﻿server:
+  port: 8888
+
+spring:
+  application:
+    name: config-service
+  profiles:
+    active: native
+  cloud:
+    config:
+      server:
+        native:
+          # Chemin par défaut — surchargé par SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS dans Docker
+          search-locations: file:///root/config-repo
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-service:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,refresh

@@ -1,0 +1,10 @@
+# Configuration centralisee pour video-service (surchargee par config-service)
+spring:
+  datasource:
+    url: jdbc:postgresql://video-db:5432/videodb
+    username: postgres
+    password: secret
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false

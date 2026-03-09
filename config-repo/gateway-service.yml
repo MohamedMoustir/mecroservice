@@ -1,0 +1,13 @@
+# Configuration centralisee pour gateway-service
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: video-service
+          uri: lb://video-service
+          predicates:
+            - Path=/api/videos/**
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**,/api/watchlist/**,/api/history/**

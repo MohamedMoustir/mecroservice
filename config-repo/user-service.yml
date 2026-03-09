@@ -1,0 +1,10 @@
+# Configuration centralisee pour user-service (surchargee par config-service)
+spring:
+  datasource:
+    url: jdbc:postgresql://user-db:5432/userdb
+    username: postgres
+    password: secret
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
