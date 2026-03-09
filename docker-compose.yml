@@ -1,0 +1,143 @@
+version: '3.8'
+services:
+  # ─── Infrastructure ───────────────────────────────────────────
+  discovery-service:
+    build:
+      context: ./discovery-service
+      dockerfile: Dockerfile
+    container_name: discovery-service
+    ports:
+      - "8761:8761"
+    networks:
+      - streaming-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  config-service:
+    build:
+      context: ./config-service
+      dockerfile: Dockerfile
+    container_name: config-service
+    ports:
+      - "8888:8888"
+    environment:
+      # Profil natif (filesystem local) — pas de Git distant
+      SPRING_PROFILES_ACTIVE: native
+      # Override du chemin de recherche vers le volume monté
+      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCHLOCATIONS: file:///root/config-repo
+    volumes:
+      # Mappe ./config-repo (Windows host) → /root/config-repo (conteneur Linux)
+      - ./config-repo:/root/config-repo:ro
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - streaming-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+    networks:
+      - streaming-net
+  # ─── Bases de données ─────────────────────────────────────────
+  video-db:
+    image: postgres:15-alpine
+    container_name: video-db
+    environment:
+      POSTGRES_DB: videodb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - video-db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - streaming-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d videodb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  user-db:
+    image: postgres:15-alpine
+    container_name: user-db
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - streaming-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d userdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # ─── Microservices métier ──────────────────────────────────────
+  video-service:
+    build:
+      context: ./video-service
+      dockerfile: Dockerfile
+    container_name: video-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://video-db:5432/videodb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: secret
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      video-db:
+        condition: service_healthy
+    networks:
+      - streaming-net
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/userdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: secret
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      user-db:
+        condition: service_healthy
+    networks:
+      - streaming-net
+# ─── Volumes & Network ────────────────────────────────────────────
+volumes:
+  video-db-data:
+  user-db-data:
+networks:
+  streaming-net:
+    driver: bridge
