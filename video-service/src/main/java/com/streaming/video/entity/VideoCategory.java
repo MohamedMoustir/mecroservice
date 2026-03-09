@@ -1,0 +1,2 @@
+package com.streaming.video.entity;
+public enum VideoCategory { ACTION, COMEDIE, DRAME, THRILLER, SF, HORREUR, ROMANCE, DOCUMENTAIRE, ANIMATION, AVENTURE, FANTAISIE, CRIME }
